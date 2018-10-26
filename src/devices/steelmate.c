@@ -1,7 +1,7 @@
 /* Steelmate TPMS FSK protocol
  *
- * Copyright © 2016 Benjamin Larsson
- * Copyright © 2016 John Jore
+ * Copyright (C) 2016 Benjamin Larsson
+ * Copyright (C) 2016 John Jore
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,7 +9,7 @@
  * (at your option) any later version.
  *
  * Packet payload: 9 bytes.
- * Bytes 2 to 9 are inverted Manchester with swaped MSB/LSB:
+ * Bytes 2 to 9 are inverted Manchester with swapped MSB/LSB:
  *
  *                               0  1  2  3  4  5  6  7  8
  *                    [00] {72} 00 00 7f 3c f0 d7 ad 8e fa

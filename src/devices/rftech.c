@@ -2,7 +2,7 @@
  * Also marked INFRA 217S34
  * Ewig Industries Macao
  *
- * Copyright © 2016 Erik Johannessen
+ * Copyright (C) 2016 Erik Johannessen
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ static int rftech_callback(bitbuffer_t *bitbuffer) {
  * List of fields to output when using CSV
  *
  * Used to determine what fields will be output in what
- * order for this devince when using -F csv.
+ * order for this device when using -F csv.
  *
  */
 static char *csv_output_fields[] = {

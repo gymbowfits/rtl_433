@@ -12,6 +12,7 @@
 
 #include "bitbuffer.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -44,8 +45,18 @@ void bitbuffer_add_row(bitbuffer_t *bits) {
 		bits->num_rows++;
 	}
 	else {
+		bits->bits_per_row[bits->num_rows-1] = 0;	// Clear last row to handle overflow somewhat gracefully
 //		fprintf(stderr, "ERROR: bitbuffer:: Could not add more rows\n");	// Some decoders may add many rows...
 	}
+}
+
+
+void bitbuffer_add_sync(bitbuffer_t *bits) {
+	if (bits->num_rows == 0) bits->num_rows++;	// Add first row automatically
+	if (bits->bits_per_row[bits->num_rows - 1]) {
+		bitbuffer_add_row(bits);
+	}
+	bits->syncs_before_row[bits->num_rows-1]++;
 }
 
 
@@ -74,8 +85,8 @@ void bitbuffer_extract_bytes(bitbuffer_t *bitbuffer, unsigned row,
 		unsigned shift = 8 - (pos & 7);
 		uint16_t word;
 
-		pos >>= 3; // Convert to bytes
-		len >>= 3;
+		pos = pos >> 3; // Convert to bytes
+		len = (len + 7) >> 3;
 
 		word = bits[pos];
 
@@ -109,7 +120,8 @@ unsigned bitbuffer_search(bitbuffer_t *bitbuffer, unsigned row, unsigned start,
 			if (ppos == pattern_bits_len)
 				return ipos - pattern_bits_len;
 		} else {
-			ipos += -ppos + 1;
+			ipos -= ppos;
+			ipos++;
 			ppos = 0;
 		}
 	}
@@ -143,30 +155,153 @@ unsigned bitbuffer_manchester_decode(bitbuffer_t *inbuf, unsigned row, unsigned 
 	return ipos;
 }
 
+unsigned bitbuffer_differential_manchester_decode(bitbuffer_t *inbuf, unsigned row, unsigned start,
+        bitbuffer_t *outbuf, unsigned max)
+{
+    uint8_t *bits = inbuf->bb[row];
+    unsigned int len  = inbuf->bits_per_row[row];
+    unsigned int ipos = start;
+    uint8_t bit1, bit2, bit3;
+
+    if (max && len > start + (max * 2))
+        len = start + (max * 2);
+
+    // the first long pulse will determine the clock
+    // if needed skip one short pulse to get in synch
+    while (ipos < len) {
+        bit1 = bit(bits, ipos++);
+        bit2 = bit(bits, ipos++);
+        bit3 = bit(bits, ipos);
+
+        if (bit1 != bit2) {
+            if (bit2 != bit3) {
+                bitbuffer_add_bit(outbuf, 0);
+            } else {
+				bit2 = bit1;
+				ipos -= 1;
+				break;
+			}
+        } else {
+			bit2 = 1 - bit1;
+			ipos -= 2;
+			break;
+		}
+    }
+
+    while (ipos < len) {
+        bit1 = bit(bits, ipos++);
+        if (bit1 == bit2)
+            break; // clock missing, abort
+        bit2 = bit(bits, ipos++);
+
+        if (bit1 == bit2)
+            bitbuffer_add_bit(outbuf, 1);
+        else
+            bitbuffer_add_bit(outbuf, 0);
+    }
+
+    return ipos;
+}
 
 void bitbuffer_print(const bitbuffer_t *bits) {
+	int highest_indent, indent_this_col, indent_this_row, row_len;
+	uint16_t col, row;
+
+	/* Figure out the longest row of bit to get the highest_indent
+	 */
+	highest_indent = sizeof("[dd] {dd} ") - 1;
+	for (row = indent_this_row = 0; row < bits->num_rows; ++row) {
+		for (col = indent_this_col  = 0; col < (bits->bits_per_row[row]+7)/8; ++col) {
+			indent_this_col += 2+1;
+		}
+		indent_this_row = indent_this_col;
+		if (indent_this_row > highest_indent)
+			highest_indent = indent_this_row;
+	}
+
 	fprintf(stderr, "bitbuffer:: Number of rows: %d \n", bits->num_rows);
-	for (uint16_t row = 0; row < bits->num_rows; ++row) {
-		fprintf(stderr, "[%02d] {%d} ", row, bits->bits_per_row[row]);
-		for (uint16_t col = 0; col < (bits->bits_per_row[row]+7)/8; ++col) {
-			fprintf(stderr, "%02x ", bits->bb[row][col]);
+	for (row = 0; row < bits->num_rows; ++row) {
+		fprintf(stderr, "[%02d] {%2d} ", row, bits->bits_per_row[row]);
+		for (col = row_len = 0; col < (bits->bits_per_row[row]+7)/8; ++col) {
+			row_len += fprintf(stderr, "%02x ", bits->bb[row][col]);
 		}
 		// Print binary values also?
 		if (bits->bits_per_row[row] <= BITBUF_MAX_PRINT_BITS) {
-			fprintf(stderr, ": ");
+			fprintf(stderr, "%-*s: ", highest_indent-row_len, "");
 			for (uint16_t bit = 0; bit < bits->bits_per_row[row]; ++bit) {
 				if (bits->bb[row][bit/8] & (0x80 >> (bit % 8))) {
 					fprintf(stderr, "1");
 				} else {
 					fprintf(stderr, "0");
 				}
-				if ((bit % 8) == 7) { fprintf(stderr, " "); }	// Add byte separators
+				if ((bit % 8) == 7)      // Add byte separators
+					fprintf(stderr, " ");
 			}
 		}
 		fprintf(stderr, "\n");
 	}
+	if(bits->num_rows >= BITBUF_ROWS) {
+		fprintf(stderr, "... Maximum number of rows reached. Message is likely truncated.\n");
+	}
 }
 
+void bitbuffer_parse(bitbuffer_t *bits, const char *code)
+{
+    const char *c;
+    int data = 0;
+    int width = -1;
+
+	bitbuffer_clear(bits);
+
+    for (c = code; *c; ++c) {
+
+        if (*c == ' ') {
+            continue;
+
+        } else if (*c == '0' && (*(c + 1) == 'x' || *(c + 1) == 'X')) {
+            ++c;
+            continue;
+
+        } else if (*c == '{') {
+            if (bits->num_rows == 0) {
+                bits->num_rows++;
+            } else {
+                bitbuffer_add_row(bits);
+            }
+            if (width >= 0) {
+                bits->bits_per_row[bits->num_rows - 2] = width;
+            }
+
+            width = strtol(c + 1, (char **)&c, 0);
+            continue;
+
+        } else if (*c == '/') {
+            bitbuffer_add_row(bits);
+            if (width >= 0) {
+                bits->bits_per_row[bits->num_rows - 2] = width;
+                width = -1;
+            }
+            continue;
+
+        } else if (*c >= '0' && *c <= '9') {
+            data = *c - '0';
+        } else if (*c >= 'A' && *c <= 'F') {
+            data = *c - 'A' + 10;
+        } else if (*c >= 'a' && *c <= 'f') {
+            data = *c - 'a' + 10;
+        }
+        bitbuffer_add_bit(bits, data >> 3 & 0x01);
+        bitbuffer_add_bit(bits, data >> 2 & 0x01);
+        bitbuffer_add_bit(bits, data >> 1 & 0x01);
+        bitbuffer_add_bit(bits, data >> 0 & 0x01);
+    }
+    if (width >= 0) {
+        if (bits->num_rows == 0) {
+            bits->num_rows++;
+        }
+        bits->bits_per_row[bits->num_rows - 1] = width;
+    }
+}
 
 int compare_rows(bitbuffer_t *bits, unsigned row_a, unsigned row_b) {
 	return (bits->bits_per_row[row_a] == bits->bits_per_row[row_b] &&

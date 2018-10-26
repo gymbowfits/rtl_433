@@ -12,6 +12,15 @@
  * For the WH1080 part I mostly have re-elaborated and merged their works. Credits (and kudos) should go to them all
  * (and to many others too).
  *
+ * Reports 1 row, 88 pulses
+ * Format: ff ID ?X XX YY ZZ ?? ?? ?? UU CC
+ * - ID: device id
+ * - ?X XX: temperature, likely in 0.1C steps (.1 e7 == 8.7C, .1 ef == 9.5C)
+ * - YY: percent in a single byte (for example 54 == 84%)
+ * - ZZ: wind speed (00 == 0, 01 == 1.1km/s, ...)
+ * - UU: wind direction: 00 is N, 02 is NE, 04 is E, etc. up to 0F is seems
+ * - CC: checksum
+ *
  *****************************************
  * WH1080
  *****************************************
@@ -36,7 +45,7 @@
  * That's why it's NOT possible to get pressure data by wireless communication. If you need pressure data you should try
  * an Arduino/Raspberry solution wired with a BMP180/280 or BMP085 sensor.
  *
- * Data are trasmitted in a 48 seconds cycle (data packet, then wait 48 seconds, then data packet...).
+ * Data are transmitted in a 48 seconds cycle (data packet, then wait 48 seconds, then data packet...).
  *
  * This module is also capable to decode the DCF77/WWVB time signal sent by the time signal decoder
  * (which is enclosed on the sensor tx): around the minute 59 of the even hours the sensor's TX stops sending weather data,
@@ -88,7 +97,6 @@
  *
  *
  */
-
 
 #include "data.h"
 #include "rtl_433.h"
@@ -254,14 +262,11 @@ static int fineoffset_wh1080_callback(bitbuffer_t *bitbuffer) {
     int msg_type; // 0=Weather 1=Datetime 2=UV/Light
     int sens_msg = 12; // 12=Weather/Time sensor  8=UV/Light sensor
     int i;
-    uint8_t bbuf[sens_msg];
+    uint8_t bbuf[11]; // max 8 / 11 bytes needed
+
     local_time_str(0, time_str);
 
     if (bitbuffer->num_rows != 1) {
-        return 0;
-    }
-    if ((bitbuffer->bits_per_row[0] != 88) && (bitbuffer->bits_per_row[0] != 87) &&
-    (bitbuffer->bits_per_row[0] != 64) && (bitbuffer->bits_per_row[0] != 63)){
         return 0;
     }
 
@@ -286,6 +291,8 @@ static int fineoffset_wh1080_callback(bitbuffer_t *bitbuffer) {
         (uint8_t *) & bbuf +1, 7*8);
         br = bbuf;
         bbuf[0] = 0xFF;
+    } else {
+        return 0;
     }
 
     if (debug_output) {
@@ -474,27 +481,11 @@ static char *output_fields[] = {
 r_device fineoffset_wh1080 = {
     .name           = "Fine Offset Electronics WH1080/WH3080 Weather Station",
     .modulation     = OOK_PULSE_PWM_RAW,
-    .short_limit    = 800,
-    .long_limit     = 2800,
-    .reset_limit    = 2800,
-    .json_callback  = &fineoffset_wh1080_callback,
-    .disabled       = 0,
-    .demod_arg      = 0,
-    .fields         = output_fields,
-};
-
-/**
- * http://www.jaycar.com.au/mini-lcd-display-weather-station/p/XC0400
- */
-
-r_device fineoffset_XC0400 = {
-    .name           = "Fine Offset Electronics, XC0400",
-    .modulation     = OOK_PULSE_PWM_RAW,
     .short_limit    = 800,	// Short pulse 544µs, long pulse 1524µs, fixed gap 1036µs
     .long_limit     = 2800,	// Maximum pulse period (long pulse + fixed gap)
     .reset_limit    = 2800,	// We just want 1 package
     .json_callback  = &fineoffset_wh1080_callback,
     .disabled       = 0,
     .demod_arg      = 0,
-    .fields         = output_fields
+    .fields         = output_fields,
 };

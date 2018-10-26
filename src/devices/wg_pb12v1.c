@@ -21,14 +21,14 @@
  *
  * Temperature
  * ---
- * Temperature value is "milli-celcius", ie 1000 mC = 1C, offset by -40 C.
+ * Temperature value is "milli-celsius", ie 1000 mC = 1C, offset by -40 C.
  *
  * 0010 01011101 = 605 mC => 60.5 C
  * Remove offset => 60.5 C - 40 C = 20.5 C
  *
  * Unknown
  * ---
- * Possbible uses could be weak battey, or new battery.
+ * Possible uses could be weak battery, or new battery.
  *
  * At the moment it this device cannot distinguish between a Fine Offset
  * device, see fineoffset.c.
@@ -60,7 +60,6 @@ static int wg_pb12v1_callback(bitbuffer_t *bitbuffer) {
     int16_t temp;
     float temperature;
     uint8_t humidity;
-    char io[49];
 
     const uint8_t polynomial = 0x31;    // x8 + x5 + x4 + 1 (x8 is implicit)
 
@@ -68,7 +67,7 @@ static int wg_pb12v1_callback(bitbuffer_t *bitbuffer) {
     if (bitbuffer->bits_per_row[0] >= 48 &&              // Don't waste time on a short packages
         bb[0][0] == 0xFF &&                              // Preamble
         bb[0][5] == crc8(&bb[0][1], 4, polynomial, 0) && // CRC (excluding preamble)
-        bb[0][4] == 0xFF                                 // Humitidy set to 11111111
+        bb[0][4] == 0xFF                                 // Humidity set to 11111111
         ){
 
         /* Get time now */
@@ -78,31 +77,15 @@ static int wg_pb12v1_callback(bitbuffer_t *bitbuffer) {
         id = ((bb[0][3]&0x1F));
 
         // Nibble 5,6,7 contains 12 bits of temperature
-        // The temperature is "milli-celcius", ie 1000 mC = 1C, offset by -40 C.
+        // The temperature is "milli-celsius", ie 1000 mC = 1C, offset by -40 C.
         temp = ((bb[0][1] & 0x0F) << 8) | bb[0][2];
         temperature = ((float)temp / 10)-40;
-
-        // Populate string array with raw packet bits.
-        for (uint16_t bit = 0; bit < bitbuffer->bits_per_row[0]; ++bit){
-            if (bb[0][bit/8] & (0x80 >> (bit % 8))){
-                io[bit] = 49; // 1
-               }
-            else {
-                io[bit] = 48; // 0
-                }
-            }
-        io[48] = 0; // terminate string array.
-
-        if (debug_output > 1) {
-           fprintf(stderr, "ID          = 0x%2X\n",  id);
-           fprintf(stderr, "temperature = %.1f C\n", temperature);
-        }
 
         data = data_make("time",          "",            DATA_STRING, time_str,
                          "model",         "",            DATA_STRING, "WG-PB12V1",
                          "id",            "ID",          DATA_INT, id,
                          "temperature_C", "Temperature", DATA_FORMAT, "%.01f C", DATA_DOUBLE, temperature,
-                         "io",            "io",          DATA_STRING, io,
+                         "mic",           "Integrity",   DATA_STRING, "CRC",
                           NULL);
         data_acquired_handler(data);
         return 1;
@@ -117,7 +100,7 @@ static char *output_fields[] = {
     "model",
     "id",
     "temperature_C",
-    "io",
+    "mic",
     NULL
 };
 

@@ -1,6 +1,6 @@
 /**
  * Various utility functions for use by device drivers
- * 
+ *
  * Copyright (C) 2015 Tommy Vestermark
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,8 +11,15 @@
 #ifndef INCLUDE_UTIL_H_
 #define INCLUDE_UTIL_H_
 
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <time.h>
+
+
+#if defined _MSC_VER // Microsoft Visual Studio
+	#define restrict  __restrict
+#endif
 
 // Helper macros
 #ifndef max
@@ -119,5 +126,65 @@ float kmph2mph(float kph);
 /// @return speed in kilometers per hour
 float mph2kmph(float kph);
 
+
+/// Convert millimeters (mm) to inches (inch)
+///
+/// @param mm: measurement in millimeters
+/// @return measurement in inches
+float mm2inch(float mm);
+
+/// Convert inches (inch) to millimeters (mm)
+///
+/// @param inch: measurement in inches
+/// @return measurement in millimeters
+float inch2mm(float inch);
+
+
+/// Convert kilo Pascal (kPa) to pounds per square inch (PSI)
+///
+/// @param kpa: pressure in kPa
+/// @return pressure in PSI
+float kpa2psi(float kpa);
+
+/// Convert pounds per square inch (PSI) to kilo Pascal (kPa)
+///
+/// @param psi: pressure in PSI
+/// @return pressure in kPa
+float psi2kpa(float psi);
+
+
+/// Convert hecto Pascal (hPa) to inches of mercury (inHg)
+///
+/// @param kpa: pressure in kPa
+/// @return pressure in inHg
+float hpa2inhg(float hpa);
+
+/// Convert inches of mercury (inHg) to hecto Pascal (hPa)
+///
+/// @param kpa: pressure in inHg
+/// @return pressure in hPa
+float inhg2hpa(float inhg);
+
+
+/// Return true if the string ends with the specified suffix, otherwise return false.
+///
+/// @param str: string to search for patterns
+/// @param suffix: the pattern to search
+/// @return true if the string ends with the specified suffix, false otherwise.
+bool str_endswith(const char *restrict str, const char *restrict suffix);
+
+/// Replace a pattern in a string. This utility function is
+/// useful when converting native units to si or customary.
+///
+/// @param orig: string to search for patterns
+/// @param rep: the pattern to replace
+/// @param with: the replacement pattern
+/// @return a new string that has rep replaced with with
+char *str_replace(char *orig, char *rep, char *with);
+
+/// Make a nice printable string for a frequency.
+///
+/// @param freq: the frequency to convert to a string.
+const char *nice_freq (double freq);
 
 #endif /* INCLUDE_UTIL_H_ */

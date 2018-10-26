@@ -15,7 +15,7 @@
 
 #include <stdint.h>
 
-#define BITBUF_COLS		80		// Number of bytes in a column
+#define BITBUF_COLS		256		// Number of bytes in a column
 #define BITBUF_ROWS		25
 #define BITBUF_MAX_PRINT_BITS	50	// Maximum number of bits to print (in addition to hex values)
 
@@ -26,6 +26,7 @@ typedef bitrow_t bitarray_t[BITBUF_ROWS];
 typedef struct {
 	uint16_t	num_rows;	// Number of active rows
 	uint16_t	bits_per_row[BITBUF_ROWS];	// Number of active bits per row
+	uint16_t	syncs_before_row[BITBUF_ROWS];	// Number of sync pulses before row
 	bitarray_t	bb;			// The actual bits buffer
 } bitbuffer_t;
 
@@ -39,6 +40,9 @@ void bitbuffer_add_bit(bitbuffer_t *bits, int bit);
 /// Add a new row to the bitbuffer
 void bitbuffer_add_row(bitbuffer_t *bits);
 
+/// Increment sync counter, add new row if not empty
+void bitbuffer_add_sync(bitbuffer_t *bits);
+
 /// Extract (potentially unaligned) bytes from the bit buffer. Len is bits.
 void bitbuffer_extract_bytes(bitbuffer_t *bitbuffer, unsigned row,
 			     unsigned pos, uint8_t *out, unsigned len);
@@ -48,6 +52,9 @@ void bitbuffer_invert(bitbuffer_t *bits);
 
 /// Print the content of the bitbuffer
 void bitbuffer_print(const bitbuffer_t *bits);
+
+/// Parse a string into a bitbuffer
+void bitbuffer_parse(bitbuffer_t *bits, const char *code);
 
 // Search the specified row of the bitbuffer, starting from bit 'start', for
 // the pattern provided. Return the location of the first match, or the end
@@ -63,6 +70,13 @@ unsigned bitbuffer_search(bitbuffer_t *bitbuffer, unsigned row, unsigned start,
 // (i.e. returns start + 2*outbuf->bits_per_row[0]).
 unsigned bitbuffer_manchester_decode(bitbuffer_t *inbuf, unsigned row, unsigned start,
 				     bitbuffer_t *outbuf, unsigned max);
+
+// Differential Manchester decoding from one bitbuffer into another, starting at the
+// specified row and start bit. Decode at most 'max' data bits (i.e. 2*max)
+// bits from the input buffer). Return the bit position in the input row
+// (i.e. returns start + 2*outbuf->bits_per_row[0]).
+unsigned bitbuffer_differential_manchester_decode(bitbuffer_t *inbuf, unsigned row, unsigned start,
+        bitbuffer_t *outbuf, unsigned max);
 
 // Function to compare bitbuffer rows and count repetitions
 int compare_rows(bitbuffer_t *bits, unsigned row_a, unsigned row_b);

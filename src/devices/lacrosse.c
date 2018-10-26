@@ -20,7 +20,7 @@
  * - Zero Pulses are longer (1,400 uS High, 1,000 uS Low) = 2,400 uS
  * - One Pulses are shorter (  550 uS High, 1,000 uS Low) = 1,600 uS
  * - Sensor id changes when the battery is changed
- * - Primay Value are BCD with one decimal place: vvv = 12.3
+ * - Primary Value are BCD with one decimal place: vvv = 12.3
  * - Secondary value is integer only intval = 12, seems to be a repeat of primary
  *   This may actually be an additional data check because the 4 bit checksum
  *   and parity bit is  pretty week at detecting errors.
@@ -39,7 +39,7 @@
  *   the detect and decode could be collapsed into a single reasonably
  *   readable function.
  *
- * - Make the time stamp output a generat utility function.
+ * - Make the time stamp output a general utility function.
  */
 
 #include "rtl_433.h"
@@ -56,7 +56,7 @@
 // for clarity.  The LaCrosse protocol is based
 // on 4 bit nybbles.
 //
-// Domodulation
+// Demodulation
 // Long bits = 0
 // short bits = 1
 //
@@ -213,11 +213,13 @@ static char *output_fields[] = {
 
 r_device lacrossetx = {
     .name           = "LaCrosse TX Temperature / Humidity Sensor",
-    .modulation     = OOK_PULSE_PWM_RAW,
-    .short_limit    = 952,
-    .long_limit     = 3000,
-    /// .reset_limit    = 32000,
-    .reset_limit    = 8000,
+    .modulation     = OOK_PULSE_PWM_PRECISE,
+    .short_limit    = 550,  // 550 us pulse + 1000 us gap is 1
+    .long_limit     = 1400, // 1400 us pulse + 1000 us gap is 0
+    .gap_limit      = 3000, // max gap is 1000 us
+    .reset_limit    = 8000, // actually: packet gap is 29000 us
+    .sync_width     = 0,    // not used
+    .tolerance      = 0,    // raw mode
     .json_callback  = &lacrossetx_callback,
     .disabled       = 0,
     .demod_arg      = 0,  // No Startbit removal

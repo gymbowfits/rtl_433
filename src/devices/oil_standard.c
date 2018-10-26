@@ -2,6 +2,7 @@
  *
  * Tested devices:
  *  APOLLO ULTRASONIC STANDARD (maybe also VISUAL but not SMART, FSK)
+ *  Tekelek TEK377E (E: European, A: American version)
  *  Beckett Rocket TEK377A (915MHz, ASK)
  * Should apply to similar Watchman, Beckett, and Apollo devices too.
  *
@@ -21,6 +22,7 @@
 // depth reading is in cm, lowest reading is ~3, highest is ~305, 0 is invalid
 //
 // IIII IIII IIII IIII 0FFF L0OP DDDD DDDD
+// The TEK377E might send an additional 8 zero bits.
 //
 // example packets are:
 // 010101 01010101 01010111 01101001 10011010 10101001 10100101 10011010 01101010 10011001 10011010 0000
@@ -45,9 +47,10 @@ static int oil_standard_decode(bitbuffer_t *bitbuffer, unsigned row, unsigned bi
 	uint8_t alarm;
 	bitbuffer_t databits = {0};
 
-	bitpos = bitbuffer_manchester_decode(bitbuffer, row, bitpos, &databits, 33);
+	bitpos = bitbuffer_manchester_decode(bitbuffer, row, bitpos, &databits, 41);
 
-	if (databits.bits_per_row[0] != 32)
+	if (databits.bits_per_row[0] < 32 || databits.bits_per_row[0] > 40
+			|| (databits.bb[0][4] & 0xfe) != 0)
 		return 0;
 
 	b = databits.bb[0];
@@ -60,9 +63,9 @@ static int oil_standard_decode(bitbuffer_t *bitbuffer, unsigned row, unsigned bi
 	// 0x02: High-bit for depth
 	// 0x04: (always zero?)
 	// 0x08: Leak/theft alarm
-	// 0x10: (unkown toggle)
-	// 0x20: (unkown toggle)
-	// 0x40: (unkown toggle)
+	// 0x10: (unknown toggle)
+	// 0x20: (unknown toggle)
+	// 0x40: (unknown toggle)
 	// 0x80: (always zero?)
 	flags = b[2] & ~0x0A;
 	alarm = (b[2] & 0x08) >> 3;
@@ -91,7 +94,7 @@ static int oil_standard_decode(bitbuffer_t *bitbuffer, unsigned row, unsigned bi
 	data_acquired_handler(data);
 
 	return 1;
-};
+}
 
 static int oil_standard_callback(bitbuffer_t *bitbuffer) {
 	unsigned bitpos = 0;

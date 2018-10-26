@@ -42,7 +42,7 @@
 		DECL(efergy_e2_classic) \
 		DECL(kw9015b) \
 		DECL(generic_temperature_sensor) \
-        DECL(wg_pb12v1) \
+		DECL(wg_pb12v1) \
 		DECL(acurite_txr) \
 		DECL(acurite_986) \
 		DECL(hideki_ts04) \
@@ -69,7 +69,7 @@
 		DECL(efergy_optical) \
 		DECL(hondaremote) \
 		DECL(template) \
-		DECL(fineoffset_XC0400) \
+		DECL(template) \
 		DECL(radiohead_ask) \
 		DECL(kerui) \
 		DECL(fineoffset_wh1050) \
@@ -93,17 +93,41 @@
 		DECL(generic_motion) \
 		DECL(tpms_toyota) \
 		DECL(tpms_ford) \
-		DECL(tpms_renault)
+		DECL(tpms_renault) \
+		DECL(infactory) \
+		DECL(ft004b) \
+		DECL(fordremote) \
+		DECL(philips) \
+		DECL(schrader_EG53MA4) \
+		DECL(nexa) \
+		DECL(thermopro_tp12) \
+		DECL(ge_coloreffects) \
+		DECL(x10_sec) \
+		DECL(interlogix) \
+		DECL(dish_remote_6_3) \
+		DECL(ss_sensor) \
+		DECL(sensible_living) \
+		DECL(m_bus_mode_c_t) \
+		DECL(m_bus_mode_s) \
+		DECL(m_bus_mode_r) \
+		DECL(m_bus_mode_f) \
+		DECL(wssensor) \
+		DECL(wt1024) \
+		DECL(tpms_pmv107j)
 
 typedef struct {
+	unsigned protocol_num; // fixed sequence number, assigned in main()
 	char name[256];
 	unsigned int modulation;
 	float short_limit;
 	float long_limit;
 	float reset_limit;
+	float gap_limit;
+	float sync_width;
+	float tolerance;
 	int (*json_callback)(bitbuffer_t *bitbuffer);
 	unsigned int disabled;
-	uintptr_t demod_arg;	// Decoder specific optional argument (may be pointer to struct)
+	unsigned demod_arg;	// Decoder specific optional argument
 	char **fields;			// List of fields this decoder produces; required for CSV output. NULL-terminated.
 } r_device;
 

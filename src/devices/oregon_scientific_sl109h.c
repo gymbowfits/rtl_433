@@ -126,9 +126,10 @@ static int oregon_scientific_callback_sl109h(bitbuffer_t *bitbuffer)
                          "model",         "Model",                              DATA_STRING,    "Oregon Scientific SL109H",
                          "id",            "Id",                                 DATA_INT,    id,
                          "channel",       "Channel",                            DATA_INT,    channel,
-                         "temperature_C", "Celcius",	DATA_FORMAT, "%.02f C", DATA_DOUBLE, temp_c,
+                         "temperature_C", "Celsius",	DATA_FORMAT, "%.02f C", DATA_DOUBLE, temp_c,
                          "humidity",      "Humidity",	DATA_FORMAT, "%u %%",   DATA_INT,    humidity,
                          "status",        "Status",                             DATA_INT,    status,
+                         "mic",           "Integrity",   DATA_STRING, "CHECKSUM",
                          NULL);
         data_acquired_handler(data);
         return 1;
@@ -145,6 +146,7 @@ static char *output_fields[] = {
     "status",
     "temperature_C",
     "humidity",
+    "mic",
     NULL
 };
 

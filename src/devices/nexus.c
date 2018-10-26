@@ -14,7 +14,7 @@
  * and CC is the channel: 0=CH1, 1=CH2, 2=CH3
  * temp is 12 bit signed scaled by 10
  * const is always 1111 (0x0F)
- * humiditiy is 8 bits
+ * humidity is 8 bits
  *
  * The sensor can be bought at Clas Ohlsen
  */
@@ -54,6 +54,10 @@ static int nexus_callback(bitbuffer_t *bitbuffer) {
         bb[r][3] != 0 &&
         !rubicson_crc_check(bb)) {
 
+        /* if const is not 1111 then abort */
+        if ((bb[r][3]&0xF0) != 0xF0)
+            return 0;
+
         /* Get time now */
         local_time_str(0, time_str);
 
@@ -64,8 +68,8 @@ static int nexus_callback(bitbuffer_t *bitbuffer) {
         battery = bb[r][1]&0x80;
         channel = ((bb[r][1]&0x30) >> 4) + 1;
 
-        /* Nible 3,4,5 contains 12 bits of temperature
-         * The temerature is signed and scaled by 10 */
+        /* Nibble 3,4,5 contains 12 bits of temperature
+         * The temperature is signed and scaled by 10 */
         temp = (int16_t)((uint16_t)(bb[r][1] << 12) | (bb[r][2] << 4));
         temp = temp >> 4;
 
